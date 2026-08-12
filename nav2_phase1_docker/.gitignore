@@ -1,0 +1,13 @@
+# Docker / ROS runtime output
+log/
+build/
+install/
+
+# Gazebo user cache
+.gazebo/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+Thumbs.db

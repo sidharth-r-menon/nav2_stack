@@ -1,0 +1,13 @@
+mission_manager:
+  ros__parameters:
+    use_sim_time: true
+    min_frontier_cells: 12
+    goal_timeout_sec: 90.0
+    approach_distance: 0.70
+    finish_mapping_before_approach: false
+ball_detector:
+  ros__parameters:
+    use_sim_time: true
+    minimum_area_px: 90.0
+    confirmation_count: 4
+    max_range_m: 5.0

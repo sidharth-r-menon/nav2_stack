@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="phase3_target_ball">
+    <static>true</static>
+    <link name="ball_link">
+      <visual name="ball_visual">
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <material>
+          <ambient>1 0 0 1</ambient><diffuse>1 0 0 1</diffuse>
+          <emissive>0.15 0 0 1</emissive>
+        </material>
+      </visual>
+      <collision name="ball_collision"><geometry><sphere><radius>0.15</radius></sphere></geometry></collision>
+    </link>
+  </model>
+</sdf>

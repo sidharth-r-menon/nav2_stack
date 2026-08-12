@@ -1,0 +1,28 @@
+name: nav2-phase2
+
+services:
+  nav2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nav2-phase2:humble
+    container_name: nav2_phase2
+    environment:
+      # Keep Phase 2 isolated from any other ROS 2 lab on the host.
+      ROS_DOMAIN_ID: 44
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      TURTLEBOT3_MODEL: waffle
+      NAV2_STARTUP_TIMEOUT: 180
+
+      # VcXsrv on the Windows host renders Gazebo Classic and RViz.
+      DISPLAY: host.docker.internal:0.0
+      QT_X11_NO_MITSHM: "1"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    working_dir: /ws
+    volumes:
+      # Maps and serialized SLAM pose graphs survive container recreation.
+      - ../nav2_phase2_ws:/ws
+    command: ["bash", "/usr/local/bin/start_nav2_phase2.sh"]
+    stdin_open: true
+    tty: true
+

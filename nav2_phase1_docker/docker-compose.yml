@@ -1,0 +1,26 @@
+name: nav2-phase1
+
+services:
+  nav2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nav2-phase1:humble
+    container_name: nav2_phase1
+    environment:
+      ROS_DOMAIN_ID: 43
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      TURTLEBOT3_MODEL: waffle
+
+      # VcXsrv on the Windows host renders Gazebo Classic and RViz.
+      DISPLAY: host.docker.internal:0.0
+      QT_X11_NO_MITSHM: "1"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    working_dir: /ws
+    volumes:
+      # Keep this mount even though Phase 1 has no custom ROS package yet.
+      # Later phases add maps, launch files, parameter files, and code here.
+      - ../nav2_phase1_ws:/ws
+    command: ["bash", "/usr/local/bin/start_nav2_phase1.sh"]
+    stdin_open: true
+    tty: true
