@@ -232,15 +232,9 @@ planner_server:
     planner_plugins: ["GridBased"]
     GridBased:
       plugin: "nav2_navfn_planner/NavfnPlanner"
-      # Tightened from 0.5 → 0.05: with tolerance=0.5, NavFn was silently
-      # adjusting the MRTSP dispatch point up to 0.5 m away (into open space)
-      # and reporting SUCCESS. The robot reached the adjusted point but never
-      # cleared the frontier. Now if the dispatch is inside the inflation zone,
-      # NavFn will FAIL → frontier_explorer sees a blocked goal →
-      # goal_skip_on_blocked_goal skips it → next frontier selected.
-      tolerance: 0.05
-      # A* finds paths in cluttered spaces (furniture, narrow corridors) more
-      # reliably than Dijkstra for our household environment.
+      # 0.25m gives the planner enough flexibility to find valid stand-off
+      # poses near doorways and furniture without failing prematurely.
+      tolerance: 0.25
       use_astar: true
       allow_unknown: true
 

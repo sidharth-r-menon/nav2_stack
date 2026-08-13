@@ -17,15 +17,11 @@ frontier_explorer:
 
     # --------------- QoS --------------- #
 
-    # SLAM Toolbox publishes /map with transient_local durability on Humble
     map_qos_durability: transient_local
     map_qos_reliability: reliable
     map_qos_depth: 1
-
-    # Autodetect startup QoS to avoid mismatches
     map_qos_autodetect_on_startup: true
     map_qos_autodetect_timeout_s: 8.0
-
     costmap_qos_reliability: reliable
     costmap_qos_depth: 10
     local_costmap_qos_reliability: inherit
@@ -34,34 +30,20 @@ frontier_explorer:
     # --------------- GENERAL --------------- #
 
     use_sim_time: true
-
-    # 1.0 Hz: poll for new frontiers every 1 s.
-    # 0.25 Hz was too slow: the robot kept re-selecting the same nearby
-    # frontier because the pool never refreshed fast enough to reveal
-    # better candidates further away. Docker Desktop can afford 1 Hz fine.
     map_processing_rate_hz: 1.0
-
     autostart: true
-
-    # Expose /control_exploration service so ball_approach_manager can stop us
     control_service_enabled: true
-
     completion_event_enabled: true
-
-    # Help the robot escape if the first frontier goal is inaccessible
     escape_enabled: true
 
-    return_to_start_on_complete: false
+    # Return to the starting position once exploration completes
+    return_to_start_on_complete: true
+
+    # If all remaining frontier fragments are suppressed/unreachable, return to start
+    all_frontiers_suppressed_behavior: return_to_start
 
     # --------------- MRTSP SOLVER --------------- #
 
-    # Switched from greedy to dp. Greedy "only optimizes the next selected
-    # edge... it can miss a better route when a slightly more expensive
-    # first choice leads to a much better sequence afterward" (upstream
-    # docs) - that's exactly the symptom in the logs: the same close,
-    # frozen-size frontier (size=167, unchanged across 50+ dispatches) kept
-    # winning over anything that would actually grow the map. DP evaluates
-    # a bounded lookahead instead of only the immediate next hop.
     mrtsp_solver: dp
     dp_solver_candidate_limit: 15
     dp_planning_horizon: 10
@@ -69,48 +51,52 @@ frontier_explorer:
     # --------------- MAP OPTIMIZATION --------------- #
 
     frontier_map_optimization_enabled: true
+    occ_threshold: 65
 
-    # Was implicitly inheriting the node's built-in default of 50.
-    # Upstream's own packaged config uses 60, which is more forgiving of
-    # sparse/noisy SLAM occupancy right at the frontier boundary.
-    occ_threshold: 25
+    # Filter out tiny residual boundary/crevice fragments (< 35 cells ≈ 1.75m boundary).
+    # Real unexplored rooms/doorways have 80-150+ cells. This ensures exploration terminates
+    # cleanly once all actual open spaces are mapped.
+    min_frontier_size_cells: 35
 
-    # Was implicitly inheriting the node's built-in default of 5 cells,
-    # which lets small noise-sized frontier fragments near the robot
-    # (sensor edge artifacts, thin unexplored slivers next to furniture)
-    # remain eligible candidates and compete with real unexplored area.
-    min_frontier_size_cells: 15
+    sensor_effective_range_m: 1.5
 
-    # sensor_effective_range_m is SUBTRACTED from the MRTSP path-cost
-    # distance term: d(Vi,Vj) = max(...) - r_s. At 1.5m (the node default),
-    # any frontier within ~1.5m of the robot scores as very cheap/negative
-    # cost regardless of how little new area it actually reveals, which
-    # keeps outcompeting farther frontiers with far more informational
-    # gain. Lowered so this bias only applies to genuinely in-range,
-    # already-visible frontiers rather than most of the near field.
-    sensor_effective_range_m: 0.5
+    sigma_s: 2.0
+    sigma_r: 30.0
+    dilation_kernel_radius_cells: 1
+
+    # --------------- NAVIGATION SAFETY --------------- #
+
+    frontier_selection_min_distance: 0.5
+    frontier_candidate_min_goal_distance_m: 0.5
+    frontier_visit_tolerance: 0.40
 
     # --------------- GOAL BEHAVIOR --------------- #
 
-    # RE-ENABLED: leaving this off was the main cause of the robot pacing
-    # in a small bubble near spawn. Without preemption, the explorer commits
-    # to whatever frontier reference it first dispatches and never
-    # reconsiders it even as new, better frontiers get revealed further out.
-    # The original thrashing (goals cancelled every ~3s) was a symptom of
-    # map_processing_rate_hz being too slow relative to preemption's
-    # re-evaluation cadence, not of preemption itself. Fixed here by raising
-    # map_processing_rate_hz to 1.0 and adding an explicit minimum gap below.
-    goal_preemption_enabled: true
-
-    # Minimum gap between preemption re-evaluations. Confirmed parameter,
-    # default is 2.0s per upstream config; raised slightly here as extra
-    # insurance against the original cancel-every-3s thrash.
-    goal_preemption_min_interval_s: 3.0
-
-    # Skip a frontier goal if Nav2 reports it as permanently blocked
+    # Disabled: prevents mid-route cancellations while driving between rooms
+    goal_preemption_enabled: false
     goal_skip_on_blocked_goal: true
 
-    # Give SLAM 3 s after each successful goal to incorporate new scans
-    # before we select the next frontier.
     post_goal_settle_enabled: true
-    post_goal_min_settle: 3.0
+    post_goal_min_settle: 1.5
+
+    # --------------- FRONTIER SUPPRESSION --------------- #
+
+    frontier_suppression_enabled: true
+
+    # Suppress after 4 failed/stalling attempts at the same frontier location
+    frontier_suppression_attempt_threshold: 4
+
+    # Localized suppression area (0.8m) so only the stuck point is suppressed,
+    # without accidentally blocking adjacent doorways or rooms
+    frontier_suppression_base_size_m: 0.8
+    frontier_suppression_expansion_size_m: 0.3
+
+    # Keep unreachable frontier areas suppressed for 5 minutes so the explorer
+    # does not loop trying the same dead spot repeatedly
+    frontier_suppression_timeout_s: 300.0
+    frontier_suppression_no_progress_timeout_s: 25.0
+    frontier_suppression_progress_epsilon_m: 0.25
+
+    frontier_suppression_startup_grace_period_s: 15.0
+    frontier_suppression_max_attempt_records: 256
+    frontier_suppression_max_regions: 64
