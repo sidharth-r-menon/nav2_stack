@@ -16,7 +16,8 @@ map with SLAM Toolbox so the robot can build the map while navigating. See the
 Phase 3 is implemented: the robot starts in an unknown multi-room house,
 maps it with SLAM, autonomously selects frontiers, detects a red ball using an
 RGB-D PointCloud2, and navigates to the object. Read the
-**[Phase 3 guide](nav2_phase3_docker/README.md)**.
+**[Phase 3 run guide](nav2_phase3_docker/README.md)** and the detailed
+**[Phase 3 technical guide](nav2_phase3_docker/PHASE3_GUIDE.md)**.
 
 There is intentionally no custom robot code, SLAM configuration, or parameter
 tuning in this phase. The aim is to understand and verify the canonical Nav2

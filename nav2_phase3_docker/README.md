@@ -2,6 +2,8 @@
 
 Phase 3 is the final, unknown-world lab. The robot starts without a map in the official TurtleBot3 **multi-room house**. It builds a 2-D occupancy grid with SLAM Toolbox, discovers and navigates to frontiers using **`frontier_exploration_ros2`** (an MRTSP-based C++ explorer), detects a red ball using RGB plus an aligned PointCloud2, transforms the ball into the `map` frame, and navigates to a safe stand-off point.
 
+For the comprehensive deep-dive on MRTSP math, bilateral decision filtering, frontier suppression algorithms, Regulated Pure Pursuit control, and system debugging, see the **[Phase 3 Technical Guide](PHASE3_GUIDE.md)**.
+
 The red ball is placed **deep in the kitchen area (~6 m from the robot start)**, forcing the robot to fully explore multiple rooms before it can detect and approach the target.
 
 ## Run
