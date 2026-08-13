@@ -14,8 +14,10 @@ services:
       NAV2_STARTUP_TIMEOUT: 300
       ROBOT_X: -2.0
       ROBOT_Y: -0.5
-      BALL_X: 1.0
-      BALL_Y: 2.0
+      # Ball placed in the kitchen area (~6 m from robot start).
+      # Forces the robot to build a full multi-room map before detecting the ball.
+      BALL_X: 4.0
+      BALL_Y: 1.5
       DISPLAY: host.docker.internal:0.0
       QT_X11_NO_MITSHM: "1"
       LIBGL_ALWAYS_SOFTWARE: "1"

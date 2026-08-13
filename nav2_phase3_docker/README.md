@@ -1,8 +1,8 @@
 # Phase 3 — Autonomous exploration, SLAM, and RGB-D target approach
 
-Phase 3 is the final, unknown-world lab. The robot starts without a map in the official TurtleBot3 **multi-room house**. It builds a 2-D occupancy grid with SLAM Toolbox, chooses frontiers (the boundary between known free and unknown space), sends those targets to Nav2, detects a red ball using RGB plus an aligned PointCloud2, transforms the ball into the `map` frame, and navigates to a safe stand-off point.
+Phase 3 is the final, unknown-world lab. The robot starts without a map in the official TurtleBot3 **multi-room house**. It builds a 2-D occupancy grid with SLAM Toolbox, discovers and navigates to frontiers using **`frontier_exploration_ros2`** (an MRTSP-based C++ explorer), detects a red ball using RGB plus an aligned PointCloud2, transforms the ball into the `map` frame, and navigates to a safe stand-off point.
 
-This is deliberately a small, readable implementation rather than a black-box exploration package: the important interview concepts are visible in two Python nodes.
+The red ball is placed **deep in the kitchen area (~6 m from the robot start)**, forcing the robot to fully explore multiple rooms before it can detect and approach the target.
 
 ## Run
 
@@ -18,18 +18,31 @@ This is deliberately a small, readable implementation rather than a black-box ex
    docker compose -f nav2_phase3_docker/docker-compose.yml up --build
    ```
 
-   First Gazebo launch can take several minutes on Docker Desktop. The startup script waits for Gazebo's service API and retries the stock robot spawn if its 30-second upstream timeout fires.
+   First build clones `frontier_exploration_ros2` from GitHub and compiles it, so it takes longer than later runs. First Gazebo launch can also take several minutes on Docker Desktop.
 
-3. In RViz, set **Fixed Frame** to `map`. The default Nav2 display already shows the map, costmaps, robot footprint, plan, and `/waypoints` markers.
+3. In RViz, set **Fixed Frame** to `map`. The default Nav2 display shows the map, costmaps, robot footprint, plan, and frontier markers at `/explore/frontiers`.
 
-4. Follow the mission:
+4. Follow the mission in a second terminal:
 
    ```powershell
    docker exec -it nav2_phase3 bash
    source /opt/ros/humble/setup.bash
    source /opt/phase3_ws/install/setup.bash
+
+   # Frontier explorer events (selected targets, completion)
+   ros2 topic echo /explore/selected_frontier
+   ros2 topic echo exploration_complete
+
+   # Ball detection and approach status
    ros2 topic echo /phase3/mission_status
    ros2 topic echo /phase3/perception_status
+   ```
+
+5. Manually stop or start the frontier explorer at runtime:
+
+   ```bash
+   frontier_exploration_ctl stop   # pause exploration
+   frontier_exploration_ctl start  # resume exploration
    ```
 
 Save both the occupancy map and SLAM pose graph after a run:
@@ -40,6 +53,8 @@ docker exec -it nav2_phase3 bash /usr/local/bin/save_phase3_map.sh house_run_01
 
 Files are persisted in `nav2_phase3_ws/maps/`.
 
+---
+
 ## What the system does
 
 ```mermaid
@@ -47,18 +62,39 @@ flowchart LR
   L["LiDAR /scan"] --> S["SLAM Toolbox"]
   O["Wheel odometry /odom"] --> S
   S --> M["/map occupancy grid + map→odom TF"]
-  M --> F["Mission manager: frontier extraction"]
-  F --> A["Nav2 NavigateToPose action"]
+  M --> FE["frontier_exploration_ros2\n(MRTSP C++ explorer)"]
+  FE --> A["Nav2 NavigateToPose action"]
   A --> C["/cmd_vel"]
   C --> R["Waffle Pi in house"]
   R --> L
-  I["RGB /camera/image_raw"] --> D["Red-ball detector"]
+  I["RGB /camera/image_raw"] --> D["ball_detector\n(HSV + PointCloud2)"]
   P["Aligned /camera/points"] --> D
   D --> B["/phase3/ball_pose in map"]
-  B --> F
+  B --> BAM["ball_approach_manager"]
+  BAM -->|"stop via control_exploration srv"| FE
+  BAM -->|"NavigateToPose"| A
 ```
 
-### Frames
+---
+
+## Node architecture
+
+| Node | Package | Role |
+|---|---|---|
+| `slam_toolbox` | system | Produces `/map` and `map → odom` TF |
+| `nav2_bringup navigation_launch` | system | Planner, controller, costmaps |
+| **`frontier_explorer`** | **`frontier_exploration_ros2`** | **MRTSP-based autonomous exploration; sends Nav2 goals** |
+| `ball_detector` | `nav2_phase3` | HSV red segmentation + PointCloud2 depth → `/phase3/ball_pose` |
+| `ball_approach_manager` | `nav2_phase3` | Stops explorer via `/control_exploration` service; sends stand-off Nav2 goal |
+
+> **What changed from the original design:**
+> - `m-explore-ros2` / `explore_lite` has been **replaced** with `frontier_exploration_ros2`.
+> - The old `mission_manager.py` (a Python BFS frontier explorer) has been **removed** — it was redundant with the external explorer.
+> - `ball_approach_manager.py` now calls the `control_exploration` **service** (not the old `/explore/resume` Bool topic) to stop the explorer when the ball is found.
+
+---
+
+## Frames
 
 | Frame | Owned by | Meaning |
 |---|---|---|
@@ -70,7 +106,9 @@ flowchart LR
 
 The essential transform chain is `map → odom → base_footprint → ... → camera_rgb_optical_frame`. A cloud point is useful for navigation only after the detector transforms it from the camera frame to `map`.
 
-### Topics worth inspecting
+---
+
+## Topics worth inspecting
 
 | Topic | Producer | Why it matters |
 |---|---|---|
@@ -78,52 +116,93 @@ The essential transform chain is `map → odom → base_footprint → ... → ca
 | `/scan` | LiDAR | Input to scan matching and mapping. |
 | `/camera/image_raw` | RGB-D Gazebo sensor | RGB image used for HSV red segmentation. |
 | `/camera/points` | RGB-D Gazebo sensor | Aligned 3-D points used to recover ball depth. |
+| `/explore/frontiers` | `frontier_exploration_ros2` | MarkerArray of all current frontier candidates. |
+| `/explore/selected_frontier` | `frontier_exploration_ros2` | The frontier goal currently being dispatched to Nav2. |
+| `exploration_complete` | `frontier_exploration_ros2` | Published when all reachable frontiers are exhausted. |
 | `/phase3/ball_pose` | `ball_detector` | Confirmed target position expressed in `map`. |
-| `/phase3/mission_status` | `mission_manager` | State-machine decisions, goals, and completion. |
+| `/phase3/mission_status` | `ball_approach_manager` | BALL_FOUND / APPROACHING / SUCCEEDED / APPROACH_FAILED. |
 | `/global_costmap/costmap` | Nav2 | Global safety/traversability representation for planning. |
 | `/local_costmap/costmap` | Nav2 | Short-range collision avoidance representation. |
 
-## Frontier algorithm (the interview-sized version)
+---
 
-1. Mark every known free map cell adjacent to an unknown cell as a **frontier cell**.
-2. Group neighboring frontier cells into clusters; discard tiny noisy clusters.
-3. Choose a free, obstacle-clear cell near each cluster's center.
-4. Score candidates by information proxy (cluster length) minus robot travel distance.
-5. Send the best candidate as a `NavigateToPose` goal. Nav2 performs global planning, local obstacle avoidance, recovery, and velocity control.
-6. On arrival, repeat with the updated map. If the ball is confirmed, cancel the frontier goal and send a stand-off approach goal instead.
+## Frontier algorithm (`frontier_exploration_ros2`)
 
-It is not a replacement for a research-grade exploration stack. Its value is that each step is observable and directly maps to core robotics concepts.
+The explorer implements a WFD-style frontier detector enhanced with:
+
+1. **Decision-map optimization** — bilateral filtering and dilation before frontier extraction to reduce noise and sharpen the known/unknown boundary.
+2. **WFD frontier extraction** — expand through reachable map cells, detect frontier cells at the known/unknown boundary, group them into connected clusters.
+3. **MRTSP-based ordering** — score frontier candidates using a Minimum Ratio Travelling Salesman Problem cost model that jointly considers distance, direction, and information gain.
+4. **Greedy or bounded-DP dispatch** — configured here as `mrtsp_solver: greedy` (lower CPU for Docker Desktop). Switch to `dp` in `frontier_exploration.yaml` for better route quality.
+5. **Goal preemption** — if the visible-reveal gain for the current target is already exhausted, replan early rather than wasting time completing a now-suboptimal route.
+6. **Runtime control** — the `/control_exploration` service (exposed via `control_service_enabled: true`) lets `ball_approach_manager` stop the explorer cleanly when the ball is found.
+
+---
 
 ## Perception algorithm
 
 The target is a static 15 cm red sphere. `ball_detector` masks the RGB image in HSV using both red hue ranges, rejects small/non-circular contours, samples valid `x,y,z` values from the aligned cloud inside the contour, takes their median, then transforms the resulting point to `map`. Four successive observations are required before publishing a target pose. This reduces one-frame segmentation noise.
 
-The mission manager samples possible approach points around the mapped ball. It picks a point that is known free and clear of occupied cells, about 0.7 m away, then faces the ball. This is why the robot approaches rather than trying to collide with the target itself.
+`ball_approach_manager` samples possible approach points around the mapped ball position. It picks a point that is known free and clear of occupied cells, about 0.7 m away, then faces the ball.
+
+---
 
 ## RViz interpretation
 
 - Greyscale occupancy grid: black = occupied, white = known free, grey = unknown.
-- Costmaps: coloured inflation bands are increasing traversal cost near obstacles; they are not the SLAM map. A map may say “free” while a costmap temporarily blocks it for safety.
+- Costmaps: coloured inflation bands show increasing traversal cost near obstacles.
 - Cyan robot footprint / laser dots: current robot geometry and LiDAR returns.
-- Green sphere on `/waypoints`: currently selected frontier goal.
-- Red sphere on `/waypoints`: ball localized in the `map` frame.
-- Green plan: Nav2's current global plan. It changes as mapping and costmaps change.
+- `/explore/frontiers` MarkerArray: all current frontier cluster candidates (add as MarkerArray in RViz).
+- `/explore/selected_frontier`: the active frontier goal being sent to Nav2.
+- Red sphere on `/waypoints`: ball localized in the `map` frame (published by `ball_detector`).
+- Green plan: Nav2's current global plan.
 
-Do **not** use **2D Pose Estimate** during this mapping run. AMCL is not running, and SLAM Toolbox owns `map → odom`. Use **2D Nav Goal** only when you intentionally want to interrupt/compare with manual Nav2 navigation; the autonomous mission normally sends its own goals.
+Do **not** use **2D Pose Estimate** during this mapping run. AMCL is not running, and SLAM Toolbox owns `map → odom`.
+
+---
+
+## Configuration
+
+| File | Purpose |
+|---|---|
+| `config/frontier_exploration.yaml` | `frontier_exploration_ros2` parameters (solver, rates, thresholds) |
+| `config/mapper_params_online_async.yaml` | SLAM Toolbox mapping parameters |
+| `ros2_ws/src/nav2_phase3/config/phase3.yaml` | `ball_detector` and `ball_approach_manager` parameters |
+
+**Ball position:** Override with `BALL_X` / `BALL_Y` in `docker-compose.yml`. Default is `(4.0, 1.5)` (kitchen area). Keep the ball on open floor, not inside furniture or walls.
+
+---
 
 ## Useful experiments
 
-- Watch the state: `ros2 topic echo /phase3/mission_status`.
-- Confirm sensor alignment: `ros2 topic hz /camera/points` and `ros2 topic echo /phase3/ball_pose --once`.
+- Watch frontiers being evaluated: add a **MarkerArray** display in RViz for `/explore/frontiers`.
+- Watch the selected target: `ros2 topic echo /explore/selected_frontier`.
 - View the RGB image: add an RViz **Image** display for `/camera/image_raw`.
-- View cloud geometry: add an RViz **PointCloud2** display for `/camera/points`; set its color transformer to RGB if available.
-- Change ball placement before launch with `BALL_X` and `BALL_Y` in `docker-compose.yml`, then recreate the container. Keep it on an open floor, not in furniture/walls.
-- Set `finish_mapping_before_approach: true` in `ros2_ws/src/nav2_phase3/config/phase3.yaml` when you want to map all reachable frontiers before pursuing a detected ball.
+- View cloud geometry: add an RViz **PointCloud2** display for `/camera/points`; set its color transformer to RGB.
+- Switch to the DP MRTSP solver for higher-quality routes: set `mrtsp_solver: dp` in `config/frontier_exploration.yaml` and rebuild the image.
+- Put the ball in a different room by editing `BALL_X` / `BALL_Y` in `docker-compose.yml`.
+- Slow down frontier selection to reduce CPU load: lower `map_processing_rate_hz` to `0.25`.
+
+---
 
 ## Project layout
 
-- `ros2_ws/src/nav2_phase3/nav2_phase3/mission_manager.py` — frontier selection, Nav2 goals, and approach state machine.
-- `ros2_ws/src/nav2_phase3/nav2_phase3/ball_detector.py` — HSV segmentation and PointCloud2-to-map localization.
-- `models/red_ball.sdf` — Gazebo target.
-- `start_nav2_phase3.sh` — ordered simulation/SLAM/Nav2/mission startup.
-- `save_phase3_map.sh` — exports PNG-compatible occupancy map plus pose graph.
+```
+nav2_phase3_docker/
+├── Dockerfile                      # Clones frontier_exploration_ros2, builds both packages
+├── docker-compose.yml              # Environment variables including ball position
+├── start_nav2_phase3.sh            # Ordered startup: Gazebo → SLAM → Nav2 → Explorer → Phase3 nodes
+├── save_phase3_map.sh              # Exports map PNG + pose graph
+├── config/
+│   ├── frontier_exploration.yaml   # frontier_exploration_ros2 parameters
+│   └── mapper_params_online_async.yaml
+├── models/
+│   └── red_ball.sdf                # Gazebo target sphere model
+└── ros2_ws/src/
+    └── nav2_phase3/
+        ├── nav2_phase3/
+        │   ├── ball_detector.py        # HSV + PointCloud2 → /phase3/ball_pose
+        │   └── ball_approach_manager.py # Stops explorer, sends Nav2 approach goal
+        ├── launch/phase3.launch.py
+        └── config/phase3.yaml
+```

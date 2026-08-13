@@ -1,13 +1,13 @@
-mission_manager:
-  ros__parameters:
-    use_sim_time: true
-    min_frontier_cells: 12
-    goal_timeout_sec: 90.0
-    approach_distance: 0.70
-    finish_mapping_before_approach: false
 ball_detector:
   ros__parameters:
     use_sim_time: true
-    minimum_area_px: 90.0
-    confirmation_count: 4
+    minimum_area_px: 250.0    # was 90: rejects small red furniture/specks
+    confirmation_count: 10    # was 4: sustained detection across 10 frames required
     max_range_m: 5.0
+    min_range_m: 0.8          # ignore robot-self and very close false positives
+    min_circularity: 0.72     # was 0.45: rejects elongated furniture/cushion contours
+
+ball_approach_manager:
+  ros__parameters:
+    use_sim_time: true
+    approach_distance: 0.70
