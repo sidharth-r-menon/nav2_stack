@@ -1,1 +1,13 @@
-nav2_phase3_docker\ros2_ws\src\m-explore-ros2
+# Build artifacts & logs
+build/
+install/
+log/
+*/build/
+*/install/
+*/log/
+*/*/build/
+*/*/install/
+*/*/log/
+
+# Phase 3 git submodule / external source
+nav2_phase3_docker/ros2_ws/src/m-explore-ros2

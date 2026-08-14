@@ -1,0 +1,80 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="charging_dock">
+    <static>true</static>
+    <link name="dock_link">
+      <!-- Vertical Upright Wall Post (No raised step on the ground) -->
+      <visual name="upright_visual">
+        <pose>0 0 0.18 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.32 0.36</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.2 0.2 0.25 1</ambient>
+          <diffuse>0.3 0.3 0.35 1</diffuse>
+          <specular>0.2 0.2 0.2 1</specular>
+        </material>
+      </visual>
+      <collision name="upright_collision">
+        <pose>0 0 0.18 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.32 0.36</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <!-- AprilTag Target Plate (Mounted on Front Face at camera height 0.20m, facing West/-X) -->
+      <visual name="apriltag_visual">
+        <pose>-0.026 0 0.20 0 0 3.14159</pose>
+        <geometry>
+          <box>
+            <size>0.002 0.18 0.18</size>
+          </box>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0 1.0</diffuse>
+          <pbr>
+            <metal>
+              <albedo_map>model://charging_dock/materials/textures/tag36_11_00000.png</albedo_map>
+              <roughness>0.1</roughness>
+              <metalness>0.0</metalness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+
+      <!-- Left Charging Contact Pad (Gold/Yellow metallic) -->
+      <visual name="contact_left">
+        <pose>-0.027 0.08 0.08 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.005 0.035 0.06</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.9 0.75 0.1 1</ambient>
+          <diffuse>0.95 0.8 0.15 1</diffuse>
+          <specular>0.5 0.5 0.2 1</specular>
+        </material>
+      </visual>
+
+      <!-- Right Charging Contact Pad (Gold/Yellow metallic) -->
+      <visual name="contact_right">
+        <pose>-0.027 -0.08 0.08 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.005 0.035 0.06</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.9 0.75 0.1 1</ambient>
+          <diffuse>0.95 0.8 0.15 1</diffuse>
+          <specular>0.5 0.5 0.2 1</specular>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

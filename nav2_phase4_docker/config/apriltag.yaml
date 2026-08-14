@@ -1,0 +1,10 @@
+apriltag:
+  ros__parameters:
+    image_transport: "raw"
+    family: "36h11"
+    size: 0.15
+    max_hamming: 0
+    z_up: true
+    tag_ids: [0]
+    tag_frames: ["dock_tag"]
+    tag_sizes: [0.15]

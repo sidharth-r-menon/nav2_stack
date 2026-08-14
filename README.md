@@ -1,219 +1,129 @@
-# Nav2 Phase 1 — TurtleBot3, Gazebo Classic, RViz, and AMCL
+# Autonomous Mobile Robotics (AMR) Nav2 Stack Series
 
-This repository is the first Nav2 lab. It uses **one Docker container** to run
-the stock ROS 2 Humble TurtleBot3 Waffle simulation, Gazebo Classic, Nav2,
-AMCL localization, and RViz.
+A complete, production-grade hands-on laboratory series for mastering **ROS 2 Navigation (Nav2)**, **Simultaneous Localization and Mapping (SLAM)**, **Autonomous Frontier Exploration & 3D Object Detection**, **Multi-Sensor Fusion (EKF)**, and **Precision Autonomous Docking (`opennav_docking`)**.
 
-For a detailed explanation of the TF tree, topics, components, RViz colors,
-2D Pose Estimate, the navigation pipeline, troubleshooting, and interview
-questions, read the **[Phase 1 architecture and interview guide](nav2_phase1_docker/PHASE1_GUIDE.md)**.
+Each phase is containerized in its own isolated Docker environment with pre-tuned parameters, Gazebo simulation worlds, RViz visualizations, and in-depth technical interview guides.
 
-Phase 2 is also implemented as a separate lab. It replaces AMCL and the saved
-map with SLAM Toolbox so the robot can build the map while navigating. See the
-**[Phase 2 run guide](nav2_phase2_docker/README.md)** and the detailed
-**[Phase 2 SLAM and interview guide](nav2_phase2_docker/PHASE2_GUIDE.md)**.
+---
 
-Phase 3 is implemented: the robot starts in an unknown multi-room house,
-maps it with SLAM, autonomously selects frontiers, detects a red ball using an
-RGB-D PointCloud2, and navigates to the object. Read the
-**[Phase 3 run guide](nav2_phase3_docker/README.md)** and the detailed
-**[Phase 3 technical guide](nav2_phase3_docker/PHASE3_GUIDE.md)**.
+## 🗺️ Project Roadmap & Phase Comparison
 
-There is intentionally no custom robot code, SLAM configuration, or parameter
-tuning in this phase. The aim is to understand and verify the canonical Nav2
-pipeline before transferring it to a custom base.
+| Phase | Core Focus | Simulation World | Key Technologies | ROS 2 Distro | Links |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Phase 1** | **Canonical Navigation & Localization** | `turtlebot3_world` | AMCL, Costmaps (Global/Local), NavFn Planner, DWB Controller | Humble | [Run Guide](nav2_phase1_docker/README.md) • [Tech Guide](nav2_phase1_docker/PHASE1_GUIDE.md) |
+| **Phase 2** | **Online Asynchronous Mapping & SLAM** | `turtlebot3_world` | SLAM Toolbox (Karto SLAM, Ceres Scan Matching, Pose Graph) | Humble | [Run Guide](nav2_phase2_docker/README.md) • [Tech Guide](nav2_phase2_docker/PHASE2_GUIDE.md) |
+| **Phase 3** | **Autonomous Exploration & 3D RGB-D Perception** | `turtlebot3_house` | Frontier Exploration, OpenCV Color Segmentation, PointCloud2 3D Clustering | Humble | [Run Guide](nav2_phase3_docker/README.md) • [Tech Guide](nav2_phase3_docker/PHASE3_GUIDE.md) |
+| **Phase 4** | **EKF Sensor Fusion & OpenNav Autonomous Docking** | `turtlebot3_world` | `opennav_docking`, AprilTag 36h11 Visual Servoing, `robot_localization` EKF, Graceful Controller | Jazzy | [Run Guide](nav2_phase4_docker/README.md) • [Tech Guide](nav2_phase4_docker/PHASE4_GUIDE.md) |
 
-## What this phase proves
+---
 
-```text
-Gazebo → /scan, /odom, /tf, /clock
-                 ↓
-     AMCL + static map → map → odom
-                 ↓
-     Global planner → local controller → /cmd_vel
-                 ↓
-               TurtleBot3
-```
+## 📦 Phase Deep Dives
 
-After completing Phase 1, you should be able to:
+### [Phase 1 — Canonical Nav2 Navigation & AMCL Localization](nav2_phase1_docker/README.md)
+- **Objective:** Understand the baseline Nav2 pipeline, TF tree (`map → odom → base_footprint → base_link → base_scan`), static map server, and Adaptive Monte Carlo Localization (KLD particle filter).
+- **Key Concepts:** Global and Local costmaps (Static, Obstacle, Inflation layers), Nav2 Goal lifecycle transitions, and obstacle avoidance.
+- **Documentation:**
+  - 📖 **[Phase 1 Run Guide](nav2_phase1_docker/README.md)**: Container setup, RViz goals, and topic inspection.
+  - 🎓 **[Phase 1 Architecture & Interview Guide](nav2_phase1_docker/PHASE1_GUIDE.md)**: Deep mathematical derivation of AMCL, particle cloud resampling, and TF transform conventions.
 
-1. Explain `map → odom → base_link`.
-2. Set an initial pose in RViz and understand why AMCL needs it.
-3. Send a navigation goal and inspect the global path, local plan, and
-   costmaps.
-4. Relate Nav2's `/cmd_vel` output to the simulated base's execution.
-5. Diagnose the basic failure classes: missing TF, no scan, no odometry,
-   inactive lifecycle nodes, or an invalid goal.
+---
 
-## Repository layout
+### [Phase 2 — Online Asynchronous SLAM with SLAM Toolbox](nav2_phase2_docker/README.md)
+- **Objective:** Navigate and explore an unknown environment from scratch without a pre-existing map using `slam_toolbox`.
+- **Key Concepts:** Ceres scan matcher, covariance computation, loop closure detection, interactive pose graph optimization, and map serialization.
+- **Documentation:**
+  - 📖 **[Phase 2 Run Guide](nav2_phase2_docker/README.md)**: SLAM execution, live map building, and `save_phase2_map.sh` workflow.
+  - 🎓 **[Phase 2 SLAM & Interview Guide](nav2_phase2_docker/PHASE2_GUIDE.md)**: Scan matching mathematics, graph-based SLAM fundamentals, and technical interview Q&A.
 
-```text
-nav2_phase1_docker/
-├── Dockerfile
-├── docker-compose.yml
-├── start_nav2_phase1.sh
-├── README.md
-└── .gitignore
+---
 
-nav2_phase1_ws/             # created beside this repository; mounted at /ws
+### [Phase 3 — Autonomous Frontier Exploration & RGB-D Object Detection](nav2_phase3_docker/README.md)
+- **Objective:** The robot starts in an unknown multi-room house (`turtlebot3_house`), autonomously discovers frontiers using wavefront detection, navigates to unknown rooms, identifies a red target ball using 3D RGB-D point clouds, and executes an approach behavior.
+- **Key Concepts:** Information-gain frontier selection, OpenCV HSV color mask segmentation, camera ray back-projection, PointCloud2 centroid estimation, and Dynamic Costmaps.
+- **Documentation:**
+  - 📖 **[Phase 3 Run Guide](nav2_phase3_docker/README.md)**: Multi-room exploration instructions and target approach telemetry.
+  - 🎓 **[Phase 3 Technical Guide](nav2_phase3_docker/PHASE3_GUIDE.md)**: Wavefront frontier algorithms, PnP camera transforms, and perception state machines.
 
-nav2_phase2_docker/
-├── Dockerfile
-├── docker-compose.yml
-├── start_nav2_phase2.sh
-├── save_phase2_map.sh
-├── config/mapper_params_online_async.yaml
-├── README.md
-└── PHASE2_GUIDE.md
+---
 
-nav2_phase2_ws/             # saved maps and serialized pose graphs
+### [Phase 4 — EKF Sensor Fusion & OpenNav AprilTag Autonomous Docking](nav2_phase4_docker/README.md)
+- **Objective:** Implement the official industry-standard autonomous docking stack using **ROS 2 Jazzy**, **OpenNav Docking Server (`opennav_docking`)**, **AprilTag 36h11 Visual Perception**, and **`robot_localization` Extended Kalman Filter (EKF)**.
+- **Key Concepts:** 15-state EKF odometry/IMU sensor fusion, decoupled two-stage macro/micro docking, Lyapunov-stable polar Graceful Controller, PnP pose estimation, and native Qt RViz docking panel.
+- **Documentation:**
+  - 📖 **[Phase 4 Run Guide](nav2_phase4_docker/README.md)**: Docker setup, multi-location spawn testing, and RViz Dock/Undock controls.
+  - 🎓 **[Phase 4 Technical Guide](nav2_phase4_docker/PHASE4_GUIDE.md)**: EKF Jacobian equations, Graceful Controller Lyapunov stability proofs, and AMR docking interview theory.
 
-nav2_phase3_docker/         # autonomous multi-room exploration + RGB-D target approach
-nav2_phase3_ws/             # Phase 3 saved maps and serialized pose graphs
-```
+---
 
-The workspace directory is empty in Phase 1. It is mounted now so it becomes
-the natural home for the mapping, localization, configuration, and custom
-robot packages added in later phases.
+## 🛠️ Prerequisites & Setup (Windows & Linux)
 
-## Requirements on Windows
+### 1. Docker Desktop
+Ensure Docker Desktop is installed and running with Linux containers enabled.
 
-- Docker Desktop using Linux containers.
-- VcXsrv/XLaunch to display Gazebo and RViz on Windows.
-
-Start **XLaunch** before Docker Compose:
-
-1. Select **Multiple windows**.
-2. Set display number to **0**.
+### 2. GUI Display Server on Windows (VcXsrv / XLaunch)
+Before launching any container:
+1. Start **XLaunch**.
+2. Select **Multiple windows**, Display number **`0`**.
 3. Select **Start no client**.
-4. Enable **Disable access control**.
-5. Finish and allow the private-network firewall prompt.
+4. Check **"Disable access control"** (crucial for Docker container X11 forwarding).
+5. Complete the setup and allow the firewall prompt.
 
-The container is configured to use `host.docker.internal:0.0`, so no WSL GUI
-configuration is required.
+---
 
-## First run
+## 🚀 Quick Launch Cheat-Sheet
 
-Place this repository at, for example:
+```powershell
+# Phase 1: Canonical AMCL Navigation
+docker compose -f nav2_phase1_docker/docker-compose.yml up --build
+
+# Phase 2: SLAM Toolbox Online Mapping
+docker compose -f nav2_phase2_docker/docker-compose.yml up --build
+
+# Phase 3: Autonomous Exploration & 3D Object Detection
+docker compose -f nav2_phase3_docker/docker-compose.yml up --build
+
+# Phase 4: EKF Sensor Fusion & OpenNav AprilTag Docking (ROS 2 Jazzy)
+docker compose -f nav2_phase4_docker/docker-compose.yml up --build
+```
+
+---
+
+## 📂 Repository Directory Layout
 
 ```text
-D:\GitHub\nav2_lab\nav2_phase1_docker
+nav2_stack/
+├── README.md                    # Master Project Overview & Roadmap (This file)
+│
+├── nav2_phase1_docker/          # Phase 1: AMCL, Static Map & Nav2 Bringup (Humble)
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── start_nav2_phase1.sh
+│   ├── README.md
+│   └── PHASE1_GUIDE.md
+│
+├── nav2_phase2_docker/          # Phase 2: SLAM Toolbox Online Mapping (Humble)
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── start_nav2_phase2.sh
+│   ├── save_phase2_map.sh
+│   ├── config/mapper_params_online_async.yaml
+│   ├── README.md
+│   └── PHASE2_GUIDE.md
+│
+├── nav2_phase3_docker/          # Phase 3: Frontier Exploration & RGB-D Object Detection (Humble)
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── start_nav2_phase3.sh
+│   ├── README.md
+│   └── PHASE3_GUIDE.md
+│
+└── nav2_phase4_docker/          # Phase 4: EKF Sensor Fusion & OpenNav AprilTag Docking (Jazzy)
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── start_nav2_phase4.sh
+    ├── README.md
+    ├── PHASE4_GUIDE.md
+    ├── config/                  # Dock database, OpenNav docking & Nav2 params
+    ├── models/                  # Charging dock 3D model with AprilTag PBR texture
+    └── scripts/                 # Real-time AprilTag 36h11 detector & dock pose publisher
 ```
-
-Create the adjacent workspace directory once:
-
-```powershell
-mkdir D:\GitHub\nav2_lab\nav2_phase1_ws
-```
-
-Then, from PowerShell:
-
-```powershell
-cd D:\GitHub\nav2_lab\nav2_phase1_docker
-docker compose up --build -d
-docker compose logs -f nav2
-```
-
-Two windows should open automatically:
-
-- **Gazebo Classic:** the ground-truth world and TurtleBot3.
-- **RViz:** map, TF, LiDAR scan, AMCL particles, paths, and costmaps.
-
-## Run a navigation goal in RViz
-
-1. In Gazebo, note the robot's approximate start position.
-2. In RViz, click **2D Pose Estimate**.
-3. Click/drag on the map to place the robot at that position and orientation.
-4. Wait for the particle cloud and TF/costmap displays to settle.
-5. Click **Nav2 Goal**, then click/drag a free location on the map.
-
-Nav2 should make a global route and repeatedly publish velocity commands on
-`/cmd_vel`. Gazebo executes them; `/odom`, `/scan`, and TF update Nav2 as the
-robot moves.
-
-## Inspect the running system
-
-Open a second PowerShell window:
-
-```powershell
-cd D:\GitHub\nav2_lab\nav2_phase1_docker
-docker compose exec nav2 bash
-```
-
-Inside the container:
-
-```bash
-source /opt/ros/humble/setup.bash
-
-ros2 topic list
-ros2 node list
-ros2 lifecycle nodes
-
-ros2 topic echo /odom --once
-ros2 topic echo /scan --once
-ros2 topic echo /cmd_vel
-```
-
-The key topics are:
-
-| Topic | Producer | Meaning |
-| --- | --- | --- |
-| `/scan` | Gazebo LiDAR plugin | Nearby obstacle ranges |
-| `/odom` | Simulated base | Short-term motion estimate |
-| `/tf` and `/tf_static` | Robot + AMCL | Robot/sensor and localization transforms |
-| `/map` | Map server | Static occupancy map |
-| `/cmd_vel` | Nav2 controller | Desired linear/angular velocity |
-| `/plan` | Global planner | Global route to the goal |
-| `/local_plan` | Controller | Short-horizon trajectory/command plan |
-
-## Useful experiments for this phase
-
-Perform these without modifying code:
-
-1. Send a clear goal in open space and observe the global/local paths.
-2. Send a goal around an obstacle and observe the global route go around it.
-3. Drag a Gazebo obstacle into the route and inspect the local costmap and
-   controller reaction.
-4. Give an intentionally wrong initial pose, observe the failure, then correct
-   it with **2D Pose Estimate**.
-5. Stop navigation, then inspect `/cmd_vel` becoming zero.
-
-## Lifecycle check
-
-The Nav2 launch uses `autostart:=True`, so normally it activates its lifecycle
-nodes automatically. If you need to verify the state:
-
-```bash
-ros2 lifecycle get /controller_server
-ros2 lifecycle get /planner_server
-ros2 lifecycle get /bt_navigator
-```
-
-Each should be `active` before it can navigate.
-
-## Shutdown
-
-From PowerShell:
-
-```powershell
-docker compose down
-```
-
-This removes the container but keeps the image. The next `docker compose up -d`
-is therefore much faster. No named volume is used in Phase 1.
-
-## Project phases
-
-- **Phase 1 — implemented:** known-map navigation using map server, AMCL, and
-  Nav2.
-- **Phase 2 — implemented:** online asynchronous SLAM with SLAM Toolbox,
-  navigation within observed space, and occupancy/pose-graph saving.
-- **Phase 3 — proposed:** dynamic-obstacle experiments, replanning, recovery,
-  and a Collision Monitor stop/slowdown safety layer. RGB-D PointCloud2 input
-  can be added as an optional extension.
-
-## References
-
-- [Nav2 Getting Started](https://docs.nav2.org/getting_started/index.html)
-- [Nav2 Costmaps](https://docs.nav2.org/configuration/packages/configuring-costmaps.html)
-- [Nav2 Behavior Tree Navigator](https://docs.nav2.org/configuration/packages/configuring-bt-navigator.html)

@@ -1,0 +1,5 @@
+docks:
+  dock_1:
+    type: "simple_charging_dock"
+    frame: "map"
+    pose: [0.5, -0.5, 0.0]
